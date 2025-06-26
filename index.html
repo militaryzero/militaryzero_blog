@@ -4,11 +4,17 @@
   <meta charset="UTF-8" />
   <title>militaryzero_blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <!-- Stylesheet -->
   <link rel="stylesheet" href="style.css" />
+
+  <!-- Markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
   <div class="container">
     <h1>militaryzero_blog</h1>
+    <p><em>Automated GitHub blog powered by OpenAI + shell scripts</em></p>
     <div id="posts">Loading posts...</div>
   </div>
 
@@ -16,27 +22,33 @@
     async function loadPosts() {
       const postsDiv = document.getElementById('posts');
 
-      const response = await fetch('https://api.github.com/repos/militaryzero/militaryzero_blog/contents/posts');
-      const files = await response.json();
+      try {
+        const res = await fetch('https://api.github.com/repos/militaryzero/militaryzero_blog/contents/posts');
+        const files = await res.json();
 
-      // Sort by name descending (newest first)
-      files.sort((a, b) => b.name.localeCompare(a.name));
+        // Sort newest first
+        files.sort((a, b) => b.name.localeCompare(a.name));
 
-      const posts = await Promise.all(
-        files.map(async file => {
-          const res = await fetch(file.download_url);
-          const text = await res.text();
+        const posts = await Promise.all(
+          files.map(async file => {
+            const contentRes = await fetch(file.download_url);
+            const markdown = await contentRes.text();
+            const html = marked.parse(markdown);
 
-          return `
-            <article>
-              <h2>${file.name.replace('.md', '')}</h2>
-              <pre>${text}</pre>
-            </article>
-          `;
-        })
-      );
+            return `
+              <article>
+                <h2>${file.name.replace('.md', '')}</h2>
+                <div class="post-content">${html}</div>
+              </article>
+            `;
+          })
+        );
 
-      postsDiv.innerHTML = posts.join('');
+        postsDiv.innerHTML = posts.join('');
+      } catch (err) {
+        postsDiv.innerHTML = `<p style="color: red;">Failed to load posts.</p>`;
+        console.error(err);
+      }
     }
 
     loadPosts();
